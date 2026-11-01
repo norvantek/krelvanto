@@ -27,8 +27,42 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.environ.get("DATA_DIR", os.path.join(HERE, "..", "data"))
-STATIC_DIR = os.environ.get("STATIC_DIR", os.path.join(HERE, "..", "frontend", "dist"))
+
+
+def _resolve_dir(env_var, candidates, marker=None):
+    """Resolve a runtime directory: $env_var wins, else the first candidate
+    that exists (optionally requiring a marker file inside it), else the
+    first candidate unchanged.
+
+    The original defaults are the first candidates, so local runs from
+    backend/ and the Docker image (which sets the env vars) resolve exactly
+    as before. The extra candidates cover the Vercel serverless layout,
+    where this module is imported from api/index.py and the process working
+    directory is the project root: data still resolves to <root>/data, and
+    the frontend dist — not present in the function bundle — simply fails
+    the isdir() check at mount time, leaving the API standalone.
+    """
+    override = os.environ.get(env_var)
+    if override:
+        return override
+    for cand in candidates:
+        path = os.path.normpath(cand)
+        if os.path.isdir(path) and (
+            marker is None or os.path.isfile(os.path.join(path, marker))
+        ):
+            return path
+    return os.path.normpath(candidates[0])
+
+
+DATA_DIR = _resolve_dir("DATA_DIR", [
+    os.path.join(HERE, "..", "data"),
+    os.path.join(os.getcwd(), "data"),
+    os.path.join(HERE, "data"),
+], marker="actuals_wind.csv")
+STATIC_DIR = _resolve_dir("STATIC_DIR", [
+    os.path.join(HERE, "..", "frontend", "dist"),
+    os.path.join(os.getcwd(), "frontend", "dist"),
+])
 
 JAN_START = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
