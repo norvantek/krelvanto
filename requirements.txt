@@ -1,0 +1,6 @@
+# Vercel installs Python dependencies from the project-root requirements.txt.
+# Keep in sync with backend/requirements.txt (used by the local/Docker path).
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pandas==3.1.0
+numpy>=2.0
